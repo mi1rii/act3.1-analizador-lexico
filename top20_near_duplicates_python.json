@@ -1,0 +1,251 @@
+{
+  "language": "python",
+  "method": "token_structure_minhash_lsh_plus_exact_jaccard",
+  "near_duplicates_only": true,
+  "python_candidates_gt60_count": 301,
+  "candidate_pairs_considered": 658,
+  "top20_near_duplicate_pairs": [
+    {
+      "rank": 1,
+      "score": 0.99005,
+      "fileA": "atcoder_flat/1356225.py",
+      "fileB": "atcoder_flat/1356221.py",
+      "locA": 66,
+      "locB": 69
+    },
+    {
+      "rank": 2,
+      "score": 0.952153,
+      "fileA": "atcoder_flat/1256320.py",
+      "fileB": "atcoder_flat/1256347.py",
+      "locA": 65,
+      "locB": 73
+    },
+    {
+      "rank": 3,
+      "score": 0.934673,
+      "fileA": "atcoder_flat/697219.py",
+      "fileB": "atcoder_flat/697205.py",
+      "locA": 69,
+      "locB": 61
+    },
+    {
+      "rank": 4,
+      "score": 0.934673,
+      "fileA": "atcoder_flat/697219.py",
+      "fileB": "atcoder_flat/697224.py",
+      "locA": 69,
+      "locB": 61
+    },
+    {
+      "rank": 5,
+      "score": 0.931677,
+      "fileA": "atcoder_flat/1316956.py",
+      "fileB": "atcoder_flat/1316958.py",
+      "locA": 124,
+      "locB": 126
+    },
+    {
+      "rank": 6,
+      "score": 0.930502,
+      "fileA": "atcoder_flat/1685918.py",
+      "fileB": "atcoder_flat/1685927.py",
+      "locA": 69,
+      "locB": 66
+    },
+    {
+      "rank": 7,
+      "score": 0.92233,
+      "fileA": "atcoder_flat/1256315.py",
+      "fileB": "atcoder_flat/1256347.py",
+      "locA": 61,
+      "locB": 73
+    },
+    {
+      "rank": 8,
+      "score": 0.917178,
+      "fileA": "atcoder_flat/835213.py",
+      "fileB": "atcoder_flat/835339.py",
+      "locA": 83,
+      "locB": 86
+    },
+    {
+      "rank": 9,
+      "score": 0.913462,
+      "fileA": "atcoder_flat/1256315.py",
+      "fileB": "atcoder_flat/1256320.py",
+      "locA": 61,
+      "locB": 65
+    },
+    {
+      "rank": 10,
+      "score": 0.908772,
+      "fileA": "atcoder_flat/1357280.py",
+      "fileB": "atcoder_flat/1357277.py",
+      "locA": 80,
+      "locB": 80
+    },
+    {
+      "rank": 11,
+      "score": 0.902439,
+      "fileA": "atcoder_flat/835129.py",
+      "fileB": "atcoder_flat/835213.py",
+      "locA": 85,
+      "locB": 83
+    },
+    {
+      "rank": 12,
+      "score": 0.895522,
+      "fileA": "atcoder_flat/834702.py",
+      "fileB": "atcoder_flat/835213.py",
+      "locA": 82,
+      "locB": 83
+    },
+    {
+      "rank": 13,
+      "score": 0.894231,
+      "fileA": "atcoder_flat/1381412.py",
+      "fileB": "atcoder_flat/1381424.py",
+      "locA": 87,
+      "locB": 90
+    },
+    {
+      "rank": 14,
+      "score": 0.893688,
+      "fileA": "atcoder_flat/1348975.py",
+      "fileB": "atcoder_flat/1381008.py",
+      "locA": 64,
+      "locB": 68
+    },
+    {
+      "rank": 15,
+      "score": 0.88563,
+      "fileA": "atcoder_flat/835129.py",
+      "fileB": "atcoder_flat/835240.py",
+      "locA": 85,
+      "locB": 88
+    },
+    {
+      "rank": 16,
+      "score": 0.885154,
+      "fileA": "atcoder_flat/927583.py",
+      "fileB": "atcoder_flat/930316.py",
+      "locA": 91,
+      "locB": 86
+    },
+    {
+      "rank": 17,
+      "score": 0.882883,
+      "fileA": "atcoder_flat/835129.py",
+      "fileB": "atcoder_flat/835339.py",
+      "locA": 85,
+      "locB": 86
+    },
+    {
+      "rank": 18,
+      "score": 0.881306,
+      "fileA": "atcoder_flat/835366.py",
+      "fileB": "atcoder_flat/835213.py",
+      "locA": 88,
+      "locB": 83
+    },
+    {
+      "rank": 19,
+      "score": 0.879056,
+      "fileA": "atcoder_flat/835311.py",
+      "fileB": "atcoder_flat/835213.py",
+      "locA": 91,
+      "locB": 83
+    },
+    {
+      "rank": 20,
+      "score": 0.876471,
+      "fileA": "atcoder_flat/834702.py",
+      "fileB": "atcoder_flat/835339.py",
+      "locA": 82,
+      "locB": 86
+    }
+  ],
+  "selected_top20_python_files": [
+    {
+      "path": "atcoder_flat/1356225.py",
+      "loc": 66
+    },
+    {
+      "path": "atcoder_flat/1356221.py",
+      "loc": 69
+    },
+    {
+      "path": "atcoder_flat/1256320.py",
+      "loc": 65
+    },
+    {
+      "path": "atcoder_flat/1256347.py",
+      "loc": 73
+    },
+    {
+      "path": "atcoder_flat/697219.py",
+      "loc": 69
+    },
+    {
+      "path": "atcoder_flat/697205.py",
+      "loc": 61
+    },
+    {
+      "path": "atcoder_flat/697224.py",
+      "loc": 61
+    },
+    {
+      "path": "atcoder_flat/1316956.py",
+      "loc": 124
+    },
+    {
+      "path": "atcoder_flat/1316958.py",
+      "loc": 126
+    },
+    {
+      "path": "atcoder_flat/1685918.py",
+      "loc": 69
+    },
+    {
+      "path": "atcoder_flat/1685927.py",
+      "loc": 66
+    },
+    {
+      "path": "atcoder_flat/1256315.py",
+      "loc": 61
+    },
+    {
+      "path": "atcoder_flat/835213.py",
+      "loc": 83
+    },
+    {
+      "path": "atcoder_flat/835339.py",
+      "loc": 86
+    },
+    {
+      "path": "atcoder_flat/1357280.py",
+      "loc": 80
+    },
+    {
+      "path": "atcoder_flat/1357277.py",
+      "loc": 80
+    },
+    {
+      "path": "atcoder_flat/835129.py",
+      "loc": 85
+    },
+    {
+      "path": "atcoder_flat/834702.py",
+      "loc": 82
+    },
+    {
+      "path": "atcoder_flat/1381412.py",
+      "loc": 87
+    },
+    {
+      "path": "atcoder_flat/1381424.py",
+      "loc": 90
+    }
+  ]
+}
