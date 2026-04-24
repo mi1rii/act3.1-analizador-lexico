@@ -1,4 +1,7 @@
-"""Generalización léxica inspirada en el enfoque de Baker."""
+# descripcion: generaliza tokens para comparar estructura y no nombres exactos
+# autor: estefania antonio villaseca, miranda eugenia colorado arroniz, alejandro kong montoya, restituto lara larios
+# matricula: a01736897, a01737023, a01734271, a01737216
+# fecha de modificacion: 2026-04-24
 
 from __future__ import annotations
 
@@ -8,27 +11,31 @@ import tokenize
 from models.match_models import LexToken
 
 
-def generalize_token(token: LexToken) -> str:
-    """Generaliza identificadores y literales, preservando estructura sintáctica.
+# proposito: convertir un token a su forma generalizada
+# parametros: token -> token original del codigo
+# retorno: texto generalizado del token
+def generalizeToken(token: LexToken) -> str:
+    # nosotros aqui reducimos diferencias superficiales para comparar la forma del codigo
+    isName = token.tokenType == tokenize.NAME
+    isKeyword = keyword.iskeyword(token.originalText)
+    isNumber = token.tokenType == tokenize.NUMBER
+    isString = token.tokenType == tokenize.STRING
 
-    Esta abstracción sigue el espíritu de Baker porque reduce diferencias
-    superficiales de renombrado o cambio de constantes, pero conserva keywords,
-    operadores y signos estructurales para comparar la forma del programa.
-    """
-
-    if token.token_type == tokenize.NAME:
-        return token.original_text if keyword.iskeyword(token.original_text) else "ID"
-    if token.token_type == tokenize.NUMBER:
+    if isName and not isKeyword:
+        return "ID"
+    if isNumber:
         return "NUM"
-    if token.token_type == tokenize.STRING:
+    if isString:
         return "STR"
-    return token.original_text
+    return token.originalText
 
 
-def apply_generalization(tokens: list[LexToken]) -> list[LexToken]:
-    """Actualiza cada token con su representación generalizada."""
-
+# proposito: aplicar la generalizacion a una lista de tokens
+# parametros: tokens -> lista de tokens del archivo
+# retorno: la misma lista con sus campos de comparacion actualizados
+def applyGeneralization(tokens: list[LexToken]) -> list[LexToken]:
+    # en esta seccion dejamos lista la forma original y la forma generalizada
     for token in tokens:
-        token.generalized_text = generalize_token(token)
-        token.comparable_text = token.original_text
+        token.comparableText = token.originalText
+        token.generalizedText = generalizeToken(token)
     return tokens

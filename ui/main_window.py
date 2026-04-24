@@ -1,4 +1,7 @@
-"""Ventana principal de la aplicacion de similitud."""
+# descripcion: interfaz principal para comparar archivos python y mostrar coincidencias
+# autor: estefania antonio villaseca, miranda eugenia colorado arroniz, alejandro kong montoya, restituto lara larios
+# matricula: a01736897, a01737023, a01734271, a01737216
+# fecha de modificacion: 2026-04-24
 
 from __future__ import annotations
 
@@ -31,7 +34,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.file_loader import DEFAULT_SOURCE_DIR, discover_source_files
+from core.file_loader import DEFAULT_SOURCE_DIR, discoverSourceFiles
 from core.similarity import (
     SimilarityEngine,
     TECHNIQUE_BAKER,
@@ -56,521 +59,587 @@ HIGHLIGHT_COLORS = [
 
 
 class LineNumberArea(QWidget):
-    """Area lateral con numeros de linea."""
-
-    def __init__(self, editor: "CodeViewer") -> None:
+    # proposito: dibujar el margen de numeros de linea
+    # parametros: editor -> editor al que pertenece esta area
+    # retorno: ninguno
+    def __init__(self, editor: CodeViewer) -> None:
         super().__init__(editor)
         self.editor = editor
 
+    # proposito: dar el tamano sugerido del area lateral
+    # parametros: ninguno
+    # retorno: tamano sugerido del widget
     def sizeHint(self) -> QSize:
-        return QSize(self.editor.line_number_area_width(), 0)
+        return QSize(self.editor.lineNumberAreaWidth(), 0)
 
+    # proposito: pintar el area lateral
+    # parametros: event -> evento de pintura
+    # retorno: ninguno
     def paintEvent(self, event) -> None:  # noqa: N802
-        self.editor.line_number_area_paint_event(event)
+        self.editor.lineNumberAreaPaintEvent(event)
 
 
 class CodeViewer(QPlainTextEdit):
-    """Editor de solo lectura con resaltado y numeros de linea."""
-
+    # proposito: crear un editor de solo lectura con numeros de linea y resaltado
+    # parametros: parent -> widget padre opcional
+    # retorno: ninguno
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setReadOnly(True)
         self.setLineWrapMode(QPlainTextEdit.NoWrap)
         self.setTabStopDistance(32)
-        self.line_number_area = LineNumberArea(self)
+        self.lineNumberArea = LineNumberArea(self)
 
-        self.blockCountChanged.connect(self.update_line_number_area_width)
-        self.updateRequest.connect(self.update_line_number_area)
-        self.update_line_number_area_width(0)
+        self.blockCountChanged.connect(self.updateLineNumberAreaWidth)
+        self.updateRequest.connect(self.updateLineNumberArea)
+        self.updateLineNumberAreaWidth(0)
 
-    def line_number_area_width(self) -> int:
+    # proposito: calcular el ancho del margen de numeros de linea
+    # parametros: ninguno
+    # retorno: ancho del margen
+    def lineNumberAreaWidth(self) -> int:
         digits = max(2, len(str(max(1, self.blockCount()))))
         return 14 + self.fontMetrics().horizontalAdvance("9") * digits
 
-    def update_line_number_area_width(self, _: int) -> None:
-        self.setViewportMargins(self.line_number_area_width(), 0, 0, 0)
+    # proposito: actualizar los margenes del editor
+    # parametros: _ -> parametro requerido por la senal
+    # retorno: ninguno
+    def updateLineNumberAreaWidth(self, _: int) -> None:
+        self.setViewportMargins(self.lineNumberAreaWidth(), 0, 0, 0)
 
-    def update_line_number_area(self, rect, dy: int) -> None:
+    # proposito: refrescar la zona donde van los numeros de linea
+    # parametros: rect -> zona actualizada  dy -> desplazamiento vertical
+    # retorno: ninguno
+    def updateLineNumberArea(self, rect, dy: int) -> None:
         if dy:
-            self.line_number_area.scroll(0, dy)
+            self.lineNumberArea.scroll(0, dy)
         else:
-            self.line_number_area.update(0, rect.y(), self.line_number_area.width(), rect.height())
+            self.lineNumberArea.update(0, rect.y(), self.lineNumberArea.width(), rect.height())
 
         if rect.contains(self.viewport().rect()):
-            self.update_line_number_area_width(0)
+            self.updateLineNumberAreaWidth(0)
 
+    # proposito: acomodar el margen lateral al redimensionar
+    # parametros: event -> evento de cambio de tamano
+    # retorno: ninguno
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
         contents = self.contentsRect()
-        self.line_number_area.setGeometry(
+        self.lineNumberArea.setGeometry(
             QRect(
                 contents.left(),
                 contents.top(),
-                self.line_number_area_width(),
+                self.lineNumberAreaWidth(),
                 contents.height(),
             )
         )
 
-    def line_number_area_paint_event(self, event) -> None:
-        painter = QPainter(self.line_number_area)
+    # proposito: pintar los numeros de linea visibles
+    # parametros: event -> evento de pintura
+    # retorno: ninguno
+    def lineNumberAreaPaintEvent(self, event) -> None:
+        painter = QPainter(self.lineNumberArea)
         painter.fillRect(event.rect(), QColor("#f1ece3"))
         painter.setPen(QColor("#7a6958"))
 
         block = self.firstVisibleBlock()
-        block_number = block.blockNumber()
+        blockNumber = block.blockNumber()
         top = round(self.blockBoundingGeometry(block).translated(self.contentOffset()).top())
         bottom = top + round(self.blockBoundingRect(block).height())
 
         while block.isValid() and top <= event.rect().bottom():
-            if block.isVisible() and bottom >= event.rect().top():
+            blockVisible = block.isVisible() and bottom >= event.rect().top()
+            if blockVisible:
                 painter.drawText(
                     0,
                     top,
-                    self.line_number_area.width() - 6,
+                    self.lineNumberArea.width() - 6,
                     self.fontMetrics().height(),
                     Qt.AlignRight | Qt.AlignVCenter,
-                    str(block_number + 1),
+                    str(blockNumber + 1),
                 )
 
             block = block.next()
             top = bottom
             bottom = top + round(self.blockBoundingRect(block).height())
-            block_number += 1
+            blockNumber += 1
 
-    def apply_highlights(self, spans: list[HighlightSpan]) -> None:
+    # proposito: aplicar resaltado a una lista de rangos
+    # parametros: spans -> rangos a pintar
+    # retorno: ninguno
+    def applyHighlights(self, spans: list[HighlightSpan]) -> None:
         selections: list[QTextEdit.ExtraSelection] = []
+
         for span in spans:
-            if span.end <= span.start:
-                continue
-            selection = QTextEdit.ExtraSelection()
-            cursor = self.textCursor()
-            cursor.setPosition(span.start)
-            cursor.setPosition(span.end, QTextCursor.KeepAnchor)
-            selection.cursor = cursor
-            color = QColor(HIGHLIGHT_COLORS[span.block_index % len(HIGHLIGHT_COLORS)])
-            format_ = QTextCharFormat()
-            format_.setBackground(color)
-            format_.setProperty(QTextCharFormat.FullWidthSelection, False)
-            selection.format = format_
-            selections.append(selection)
+            validSpan = span.end > span.start
+            if validSpan:
+                selection = QTextEdit.ExtraSelection()
+                cursor = self.textCursor()
+                cursor.setPosition(span.start)
+                cursor.setPosition(span.end, QTextCursor.KeepAnchor)
+                selection.cursor = cursor
+
+                color = QColor(HIGHLIGHT_COLORS[span.blockIndex % len(HIGHLIGHT_COLORS)])
+                formatValue = QTextCharFormat()
+                formatValue.setBackground(color)
+                formatValue.setProperty(QTextCharFormat.FullWidthSelection, False)
+                selection.format = formatValue
+                selections.append(selection)
+
         self.setExtraSelections(selections)
 
 
 class MainWindow(QMainWindow):
-    """UI principal que coordina carga, comparacion y visualizacion."""
-
-    def __init__(self, source_dir: Path | None = None) -> None:
+    # proposito: crear la ventana principal y cargar los archivos del proyecto
+    # parametros: sourceDir -> carpeta de entrada opcional
+    # retorno: ninguno
+    def __init__(self, sourceDir: Path | None = None) -> None:
         super().__init__()
-        self.source_dir = source_dir or DEFAULT_SOURCE_DIR
+        self.sourceDir = sourceDir or DEFAULT_SOURCE_DIR
         self.engine = SimilarityEngine()
-        self.source_files: list[SourceFile] = []
-        self.load_warnings: list[str] = []
-        self.current_results: list[ComparisonResult] = []
+        self.sourceFiles: list[SourceFile] = []
+        self.loadWarnings: list[str] = []
+        self.currentResults: list[ComparisonResult] = []
 
         self.setWindowTitle("Analizador Lexico y Comparador de Similitud")
         self.resize(1480, 920)
-        self._build_ui()
-        self._load_files()
+        self.buildUi()
+        self.loadFiles()
 
-    def _build_ui(self) -> None:
+    # proposito: construir toda la interfaz
+    # parametros: ninguno
+    # retorno: ninguno
+    def buildUi(self) -> None:
         container = QWidget()
         self.setCentralWidget(container)
 
-        root_layout = QVBoxLayout(container)
-        root_layout.setContentsMargins(12, 12, 12, 12)
-        root_layout.setSpacing(10)
+        rootLayout = QVBoxLayout(container)
+        rootLayout.setContentsMargins(12, 12, 12, 12)
+        rootLayout.setSpacing(10)
 
-        controls_group = QGroupBox("Configuracion")
-        controls_layout = QGridLayout(controls_group)
+        controlsGroup = QGroupBox("Configuracion")
+        controlsLayout = QGridLayout(controlsGroup)
 
-        self.technique_combo = QComboBox()
-        self.technique_combo.addItem(TECHNIQUE_LABELS[TECHNIQUE_BAKER], TECHNIQUE_BAKER)
-        self.technique_combo.addItem(TECHNIQUE_LABELS[TECHNIQUE_LCS_TEXT], TECHNIQUE_LCS_TEXT)
-        self.technique_combo.addItem(TECHNIQUE_LABELS[TECHNIQUE_DIFF_TOKEN], TECHNIQUE_DIFF_TOKEN)
-        self.technique_combo.addItem(TECHNIQUE_LABELS[TECHNIQUE_DIFF_TEXT], TECHNIQUE_DIFF_TEXT)
+        self.techniqueCombo = QComboBox()
+        self.techniqueCombo.addItem(TECHNIQUE_LABELS[TECHNIQUE_BAKER], TECHNIQUE_BAKER)
+        self.techniqueCombo.addItem(TECHNIQUE_LABELS[TECHNIQUE_LCS_TEXT], TECHNIQUE_LCS_TEXT)
+        self.techniqueCombo.addItem(TECHNIQUE_LABELS[TECHNIQUE_DIFF_TOKEN], TECHNIQUE_DIFF_TOKEN)
+        self.techniqueCombo.addItem(TECHNIQUE_LABELS[TECHNIQUE_DIFF_TEXT], TECHNIQUE_DIFF_TEXT)
 
-        self.base_file_combo = QComboBox()
-        self.base_file_combo.currentIndexChanged.connect(self._on_base_file_changed)
+        self.baseFileCombo = QComboBox()
+        self.baseFileCombo.currentIndexChanged.connect(self.onBaseFileChanged)
 
-        self.analyze_button = QPushButton("Analizar")
-        self.analyze_button.clicked.connect(self._analyze)
+        self.analyzeButton = QPushButton("Analizar")
+        self.analyzeButton.clicked.connect(self.analyze)
 
-        self.dataset_label = QLabel()
-        self.dataset_label.setWordWrap(True)
-        self.dataset_label.setObjectName("datasetInfo")
+        self.datasetLabel = QLabel()
+        self.datasetLabel.setWordWrap(True)
+        self.datasetLabel.setObjectName("datasetInfo")
 
-        controls_layout.addWidget(QLabel("Tecnica"), 0, 0)
-        controls_layout.addWidget(self.technique_combo, 0, 1)
-        controls_layout.addWidget(QLabel("Archivo base"), 0, 2)
-        controls_layout.addWidget(self.base_file_combo, 0, 3)
-        controls_layout.addWidget(self.analyze_button, 0, 4)
-        controls_layout.addWidget(self.dataset_label, 1, 0, 1, 5)
-        controls_layout.setColumnStretch(1, 2)
-        controls_layout.setColumnStretch(3, 2)
+        controlsLayout.addWidget(QLabel("Tecnica"), 0, 0)
+        controlsLayout.addWidget(self.techniqueCombo, 0, 1)
+        controlsLayout.addWidget(QLabel("Archivo base"), 0, 2)
+        controlsLayout.addWidget(self.baseFileCombo, 0, 3)
+        controlsLayout.addWidget(self.analyzeButton, 0, 4)
+        controlsLayout.addWidget(self.datasetLabel, 1, 0, 1, 5)
+        controlsLayout.setColumnStretch(1, 2)
+        controlsLayout.setColumnStretch(3, 2)
 
-        root_layout.addWidget(controls_group)
+        rootLayout.addWidget(controlsGroup)
 
-        content_splitter = QSplitter(Qt.Horizontal)
+        contentSplitter = QSplitter(Qt.Horizontal)
 
-        base_group = QGroupBox("Archivo base")
-        base_layout = QVBoxLayout(base_group)
-        self.base_file_title = QLabel("Sin archivo cargado")
-        self.base_file_title.setObjectName("panelTitle")
-        self.base_editor = CodeViewer()
-        base_layout.addWidget(self.base_file_title)
-        base_layout.addWidget(self.base_editor)
+        baseGroup = QGroupBox("Archivo base")
+        baseLayout = QVBoxLayout(baseGroup)
+        self.baseFileTitle = QLabel("Sin archivo cargado")
+        self.baseFileTitle.setObjectName("panelTitle")
+        self.baseEditor = CodeViewer()
+        baseLayout.addWidget(self.baseFileTitle)
+        baseLayout.addWidget(self.baseEditor)
 
-        compared_group = QGroupBox("Archivo comparado")
-        compared_layout = QVBoxLayout(compared_group)
-        self.compared_file_title = QLabel("Selecciona un resultado del ranking")
-        self.compared_file_title.setObjectName("panelTitle")
-        self.compared_editor = CodeViewer()
-        compared_layout.addWidget(self.compared_file_title)
-        compared_layout.addWidget(self.compared_editor)
+        comparedGroup = QGroupBox("Archivo comparado")
+        comparedLayout = QVBoxLayout(comparedGroup)
+        self.comparedFileTitle = QLabel("Selecciona un resultado del ranking")
+        self.comparedFileTitle.setObjectName("panelTitle")
+        self.comparedEditor = CodeViewer()
+        comparedLayout.addWidget(self.comparedFileTitle)
+        comparedLayout.addWidget(self.comparedEditor)
 
-        ranking_group = QGroupBox("Ranking de similitud")
-        ranking_layout = QVBoxLayout(ranking_group)
-        self.results_table = QTableWidget(0, 3)
-        self.results_table.setHorizontalHeaderLabels(["Archivo", "Similitud (%)", "Bloques"])
-        self.results_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.results_table.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.results_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.results_table.verticalHeader().setVisible(False)
-        self.results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        self.results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        self.results_table.itemSelectionChanged.connect(self._on_result_selected)
-        ranking_layout.addWidget(self.results_table)
+        rankingGroup = QGroupBox("Ranking de similitud")
+        rankingLayout = QVBoxLayout(rankingGroup)
+        self.resultsTable = QTableWidget(0, 3)
+        self.resultsTable.setHorizontalHeaderLabels(["Archivo", "Similitud (%)", "Bloques"])
+        self.resultsTable.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.resultsTable.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.resultsTable.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.resultsTable.verticalHeader().setVisible(False)
+        self.resultsTable.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.resultsTable.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.resultsTable.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        self.resultsTable.itemSelectionChanged.connect(self.onResultSelected)
+        rankingLayout.addWidget(self.resultsTable)
 
-        content_splitter.addWidget(base_group)
-        content_splitter.addWidget(compared_group)
-        content_splitter.addWidget(ranking_group)
-        content_splitter.setSizes([410, 410, 300])
+        contentSplitter.addWidget(baseGroup)
+        contentSplitter.addWidget(comparedGroup)
+        contentSplitter.addWidget(rankingGroup)
+        contentSplitter.setSizes([410, 410, 300])
 
-        root_layout.addWidget(content_splitter, stretch=1)
+        rootLayout.addWidget(contentSplitter, stretch=1)
 
-        details_group = QGroupBox("Detalles")
-        details_group.setMaximumHeight(220)
-        details_layout = QVBoxLayout(details_group)
+        detailsGroup = QGroupBox("Detalles")
+        detailsGroup.setMaximumHeight(220)
+        detailsLayout = QVBoxLayout(detailsGroup)
 
-        details_scroll = QScrollArea()
-        details_scroll.setWidgetResizable(True)
-        details_scroll.setFrameShape(QFrame.NoFrame)
-        details_scroll.setObjectName("detailsScroll")
+        detailsScroll = QScrollArea()
+        detailsScroll.setWidgetResizable(True)
+        detailsScroll.setFrameShape(QFrame.NoFrame)
+        detailsScroll.setObjectName("detailsScroll")
 
-        details_content = QWidget()
-        details_content.setObjectName("detailsContent")
-        details_content_layout = QHBoxLayout(details_content)
+        detailsContent = QWidget()
+        detailsContent.setObjectName("detailsContent")
+        detailsContentLayout = QHBoxLayout(detailsContent)
 
-        summary_frame = QFrame()
-        summary_frame.setObjectName("detailsSummary")
-        summary_layout = QFormLayout(summary_frame)
-        self.technique_value = QLabel("-")
-        self.match_count_value = QLabel("0")
-        self.common_length_value = QLabel("0")
-        self.shorter_length_value = QLabel("0")
-        self.percent_value = QLabel("0.00%")
-        summary_layout.addRow("Tecnica", self.technique_value)
-        summary_layout.addRow("Coincidencias", self.match_count_value)
-        summary_layout.addRow("Longitud comun", self.common_length_value)
-        summary_layout.addRow("Programa mas corto", self.shorter_length_value)
-        summary_layout.addRow("Porcentaje final", self.percent_value)
+        summaryFrame = QFrame()
+        summaryFrame.setObjectName("detailsSummary")
+        summaryLayout = QFormLayout(summaryFrame)
+        self.techniqueValue = QLabel("-")
+        self.matchCountValue = QLabel("0")
+        self.commonLengthValue = QLabel("0")
+        self.shorterLengthValue = QLabel("0")
+        self.percentValue = QLabel("0.00%")
+        summaryLayout.addRow("Tecnica", self.techniqueValue)
+        summaryLayout.addRow("Coincidencias", self.matchCountValue)
+        summaryLayout.addRow("Longitud comun", self.commonLengthValue)
+        summaryLayout.addRow("Programa mas corto", self.shorterLengthValue)
+        summaryLayout.addRow("Porcentaje final", self.percentValue)
 
-        self.warnings_box = QTextEdit()
-        self.warnings_box.setReadOnly(True)
-        self.warnings_box.setPlaceholderText("Bloques coincidentes")
-        self.warnings_box.setMinimumHeight(260)
-        self.warnings_box.setObjectName("detailsBox")
+        self.detailsBox = QTextEdit()
+        self.detailsBox.setReadOnly(True)
+        self.detailsBox.setPlaceholderText("Bloques coincidentes")
+        self.detailsBox.setMinimumHeight(260)
+        self.detailsBox.setObjectName("detailsBox")
 
-        details_content_layout.addWidget(summary_frame, stretch=0)
-        details_content_layout.addWidget(self.warnings_box, stretch=1)
-        details_scroll.setWidget(details_content)
-        details_layout.addWidget(details_scroll)
+        detailsContentLayout.addWidget(summaryFrame, stretch=0)
+        detailsContentLayout.addWidget(self.detailsBox, stretch=1)
+        detailsScroll.setWidget(detailsContent)
+        detailsLayout.addWidget(detailsScroll)
 
-        root_layout.addWidget(details_group)
+        rootLayout.addWidget(detailsGroup)
 
-        self._apply_styles()
+        self.applyStyles()
 
-    def _apply_styles(self) -> None:
-        self.setStyleSheet(
-            """
-            QWidget {
-                font-family: "Segoe UI", "Noto Sans";
-                font-size: 13px;
-                color: #1f1f1f;
-            }
-            QMainWindow, QGroupBox {
-                background: #f7f5ef;
-            }
-            QScrollArea {
-                border: none;
-            }
-            QGroupBox[title="Detalles"] {
-                background: #fffdfa;
-            }
-            QScrollArea#detailsScroll, QWidget#detailsContent, QFrame#detailsSummary, QTextEdit#detailsBox {
-                background: #fffdfa;
-            }
-            QGroupBox {
-                border: 1px solid #d8d1c2;
-                border-radius: 8px;
-                margin-top: 12px;
-                font-weight: 600;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 4px;
-                color: #5d4632;
-            }
-            QLabel, QTableWidget, QHeaderView::section, QComboBox, QPlainTextEdit {
-                color: #1f1f1f;
-            }
-            QHeaderView::section {
-                background: #fffdfa;
-                border: 1px solid #d8d1c2;
-                padding: 4px 6px;
-            }
-            QPlainTextEdit, QTableWidget, QComboBox {
-                background: #fffdfa;
-                border: 1px solid #d8d1c2;
-                border-radius: 6px;
-                selection-background-color: #d9c3a5;
-                selection-color: #1f1f1f;
-            }
-            QTextEdit#detailsBox {
-                border: 1px solid #d8d1c2;
-                border-radius: 6px;
-                selection-background-color: #d9c3a5;
-                selection-color: #1f1f1f;
-            }
-            QTableWidget::item {
-                color: #1f1f1f;
-            }
-            QComboBox QAbstractItemView {
-                background: #fffdfa;
-                color: #1f1f1f;
-                selection-background-color: #d9c3a5;
-                selection-color: #1f1f1f;
-            }
-            QPushButton {
-                background: #9b6b43;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background: #825636;
-            }
-            QLabel#panelTitle {
-                font-size: 14px;
-                font-weight: 600;
-                color: #513a27;
-            }
-            QLabel#datasetInfo {
-                color: #6a5a4c;
-            }
-            """
+    # proposito: aplicar estilos visuales a la interfaz
+    # parametros: ninguno
+    # retorno: ninguno
+    def applyStyles(self) -> None:
+        styleSheet = (
+            "QWidget {"
+            'font-family: "Segoe UI", "Noto Sans";'
+            "font-size: 13px;"
+            "color: #1f1f1f;"
+            "}"
+            "QMainWindow, QGroupBox {"
+            "background: #f7f5ef;"
+            "}"
+            "QScrollArea {"
+            "border: none;"
+            "}"
+            'QGroupBox[title="Detalles"] {'
+            "background: #fffdfa;"
+            "}"
+            "QScrollArea#detailsScroll, QWidget#detailsContent, QFrame#detailsSummary, QTextEdit#detailsBox {"
+            "background: #fffdfa;"
+            "}"
+            "QGroupBox {"
+            "border: 1px solid #d8d1c2;"
+            "border-radius: 8px;"
+            "margin-top: 12px;"
+            "font-weight: 600;"
+            "}"
+            "QGroupBox::title {"
+            "subcontrol-origin: margin;"
+            "left: 10px;"
+            "padding: 0 4px;"
+            "color: #5d4632;"
+            "}"
+            "QLabel, QTableWidget, QHeaderView::section, QComboBox, QPlainTextEdit {"
+            "color: #1f1f1f;"
+            "}"
+            "QHeaderView::section {"
+            "background: #fffdfa;"
+            "border: 1px solid #d8d1c2;"
+            "padding: 4px 6px;"
+            "}"
+            "QPlainTextEdit, QTableWidget, QComboBox {"
+            "background: #fffdfa;"
+            "border: 1px solid #d8d1c2;"
+            "border-radius: 6px;"
+            "selection-background-color: #d9c3a5;"
+            "selection-color: #1f1f1f;"
+            "}"
+            "QTextEdit#detailsBox {"
+            "border: 1px solid #d8d1c2;"
+            "border-radius: 6px;"
+            "selection-background-color: #d9c3a5;"
+            "selection-color: #1f1f1f;"
+            "}"
+            "QTableWidget::item {"
+            "color: #1f1f1f;"
+            "}"
+            "QComboBox QAbstractItemView {"
+            "background: #fffdfa;"
+            "color: #1f1f1f;"
+            "selection-background-color: #d9c3a5;"
+            "selection-color: #1f1f1f;"
+            "}"
+            "QPushButton {"
+            "background: #9b6b43;"
+            "color: white;"
+            "border: none;"
+            "border-radius: 6px;"
+            "padding: 8px 16px;"
+            "font-weight: 600;"
+            "}"
+            "QPushButton:hover {"
+            "background: #825636;"
+            "}"
+            "QLabel#panelTitle {"
+            "font-size: 14px;"
+            "font-weight: 600;"
+            "color: #513a27;"
+            "}"
+            "QLabel#datasetInfo {"
+            "color: #6a5a4c;"
+            "}"
         )
+        self.setStyleSheet(styleSheet)
 
-    def _load_files(self) -> None:
-        self.source_files, self.load_warnings = discover_source_files(self.source_dir)
-        self.base_file_combo.clear()
-        for source_file in self.source_files:
-            self.base_file_combo.addItem(source_file.name, source_file)
+    # proposito: cargar archivos de la carpeta de entrada
+    # parametros: ninguno
+    # retorno: ninguno
+    def loadFiles(self) -> None:
+        self.sourceFiles, self.loadWarnings = discoverSourceFiles(self.sourceDir)
+        self.baseFileCombo.clear()
 
-        dataset_text = f"Carpeta de entrada: {self.source_dir.resolve()}"
-        if self.load_warnings:
-            dataset_text += " | " + " | ".join(self.load_warnings)
-        self.dataset_label.setText(dataset_text)
+        for sourceFile in self.sourceFiles:
+            self.baseFileCombo.addItem(sourceFile.name, sourceFile)
 
-        if not self.source_files:
+        datasetText = f"Carpeta de entrada: {self.sourceDir.resolve()}"
+        if self.loadWarnings:
+            datasetText += " | " + " | ".join(self.loadWarnings)
+        self.datasetLabel.setText(datasetText)
+
+        if not self.sourceFiles:
             QMessageBox.warning(
                 self,
                 "Sin archivos",
-                "No se encontraron archivos fuente en la carpeta configurada.",
+                "No se encontraron archivos fuente en la carpeta configurada",
             )
-            self.base_editor.setPlainText("")
-            self.compared_editor.setPlainText("")
-            self.base_file_title.setText("Sin archivo cargado")
-            return
+            self.baseEditor.setPlainText("")
+            self.comparedEditor.setPlainText("")
+            self.baseFileTitle.setText("Sin archivo cargado")
+        else:
+            self.onBaseFileChanged(0)
 
-        self._on_base_file_changed(0)
+    # proposito: actualizar la interfaz cuando cambia el archivo base
+    # parametros: index -> posicion seleccionada en el combo
+    # retorno: ninguno
+    def onBaseFileChanged(self, index: int) -> None:
+        sourceFile = self.baseFileCombo.itemData(index)
+        validSourceFile = isinstance(sourceFile, SourceFile)
 
-    def _on_base_file_changed(self, index: int) -> None:
-        source_file = self.base_file_combo.itemData(index)
-        if not isinstance(source_file, SourceFile):
-            self.base_editor.setPlainText("")
-            self.base_file_title.setText("Sin archivo base")
-            return
+        if validSourceFile:
+            self.baseFileTitle.setText(
+                f"{sourceFile.name} | {sourceFile.lineCount} lineas | {sourceFile.extension or 'sin extension'}"
+            )
+            self.baseEditor.setPlainText(sourceFile.text)
+            self.baseEditor.applyHighlights([])
+            self.comparedEditor.setPlainText("")
+            self.comparedEditor.applyHighlights([])
+            self.comparedFileTitle.setText("Selecciona un resultado del ranking")
+            self.resultsTable.setRowCount(0)
+            self.currentResults = []
+            self.updateDetails(None)
+        else:
+            self.baseEditor.setPlainText("")
+            self.baseFileTitle.setText("Sin archivo base")
 
-        self.base_file_title.setText(
-            f"{source_file.name} | {source_file.line_count} lineas | {source_file.extension or 'sin extension'}"
-        )
-        self.base_editor.setPlainText(source_file.text)
-        self.base_editor.apply_highlights([])
-        self.compared_editor.setPlainText("")
-        self.compared_editor.apply_highlights([])
-        self.compared_file_title.setText("Selecciona un resultado del ranking")
-        self.results_table.setRowCount(0)
-        self.current_results = []
-        self._update_details(None)
-
-    def _analyze(self) -> None:
-        if len(self.source_files) < 2:
+    # proposito: ejecutar la comparacion para el archivo base seleccionado
+    # parametros: ninguno
+    # retorno: ninguno
+    def analyze(self) -> None:
+        enoughFiles = len(self.sourceFiles) >= 2
+        if not enoughFiles:
             QMessageBox.warning(
                 self,
                 "Archivos insuficientes",
-                "Se necesitan al menos dos archivos fuente para comparar.",
+                "Se necesitan al menos dos archivos fuente para comparar",
             )
-            return
-
-        base_file = self.base_file_combo.currentData()
-        if not isinstance(base_file, SourceFile):
-            return
-
-        technique_key = self.technique_combo.currentData()
-        self.current_results = self.engine.compare_all(base_file, self.source_files, technique_key)
-        self._populate_results_table()
-        self.base_editor.setPlainText(base_file.text)
-        self.base_file_title.setText(
-            f"{base_file.name} | {base_file.line_count} lineas | {base_file.extension or 'sin extension'}"
-        )
-
-        if self.current_results:
-            self.results_table.selectRow(0)
-            self._show_result(self.current_results[0])
         else:
-            self._update_details(None)
+            baseFile = self.baseFileCombo.currentData()
+            validBaseFile = isinstance(baseFile, SourceFile)
 
-    def _populate_results_table(self) -> None:
-        self.results_table.setRowCount(len(self.current_results))
-        for row, result in enumerate(self.current_results):
-            file_item = QTableWidgetItem(result.compared_file.name)
-            file_item.setData(Qt.UserRole, result)
-            percent_item = QTableWidgetItem(f"{result.similarity_percent:.2f}")
-            blocks_item = QTableWidgetItem(str(result.block_count))
-            percent_item.setTextAlignment(Qt.AlignCenter)
-            blocks_item.setTextAlignment(Qt.AlignCenter)
-            self.results_table.setItem(row, 0, file_item)
-            self.results_table.setItem(row, 1, percent_item)
-            self.results_table.setItem(row, 2, blocks_item)
-        self.results_table.resizeRowsToContents()
-
-    def _on_result_selected(self) -> None:
-        selected_items = self.results_table.selectedItems()
-        if not selected_items:
-            return
-        result = selected_items[0].data(Qt.UserRole)
-        if isinstance(result, ComparisonResult):
-            self._show_result(result)
-
-    def _show_result(self, result: ComparisonResult) -> None:
-        self.base_editor.setPlainText(result.base_file.text)
-        self.compared_editor.setPlainText(result.compared_file.text)
-        self.base_editor.apply_highlights(result.base_highlights)
-        self.compared_editor.apply_highlights(result.compared_highlights)
-        self.compared_file_title.setText(
-            f"{result.compared_file.name} | {result.compared_file.line_count} lineas | "
-            f"{result.compared_file.extension or 'sin extension'}"
-        )
-        self._update_details(result)
-
-    @staticmethod
-    def _line_range_from_span(text: str, span: HighlightSpan) -> tuple[int, int]:
-        start_line = text.count("\n", 0, max(0, span.start)) + 1
-        end_index = max(span.start, span.end - 1)
-        end_line = text.count("\n", 0, min(len(text), end_index)) + 1
-        return start_line, end_line
-
-    @staticmethod
-    def _format_line_range(label: str, start_line: int, end_line: int) -> str:
-        if start_line == end_line:
-            return f"{label} linea {start_line}"
-        return f"{label} lineas {start_line}-{end_line}"
-
-    def _update_details(self, result: ComparisonResult | None) -> None:
-        if result is None:
-            self.technique_value.setText("-")
-            self.match_count_value.setText("0")
-            self.common_length_value.setText("0")
-            self.shorter_length_value.setText("0")
-            self.percent_value.setText("0.00%")
-            text = "\n".join(self.load_warnings) if self.load_warnings else ""
-            self.warnings_box.setPlainText(text)
-            return
-
-        self.technique_value.setText(result.technique_label)
-        self.match_count_value.setText(str(result.block_count))
-        self.common_length_value.setText(f"{result.total_common_length} {result.unit_name}")
-        self.shorter_length_value.setText(f"{result.shorter_length} {result.unit_name}")
-        self.percent_value.setText(f"{result.similarity_percent:.2f}%")
-
-        message_lines: list[str] = []
-        if result.error:
-            message_lines.append(f"Error: {result.error}")
-        message_lines.extend(result.warnings)
-
-        html_parts: list[str] = []
-        if message_lines:
-            html_parts.append(
-                "<div style='margin-bottom:8px;'>" +
-                "<br>".join(escape(line) for line in message_lines if line) +
-                "</div>"
-            )
-
-        if result.blocks:
-            html_parts.append("<div><b>Bloques detectados:</b></div>")
-            base_spans_by_block = {span.block_index: span for span in result.base_highlights}
-            compared_spans_by_block = {span.block_index: span for span in result.compared_highlights}
-            for index, block in enumerate(result.blocks[:20], start=1):
-                base_span = base_spans_by_block.get(index - 1)
-                compared_span = compared_spans_by_block.get(index - 1)
-                block_summary = (
-                    f"{index}. longitud={block.length} {result.unit_name}"
+            if validBaseFile:
+                techniqueKey = self.techniqueCombo.currentData()
+                self.currentResults = self.engine.compareAll(baseFile, self.sourceFiles, techniqueKey)
+                self.populateResultsTable()
+                self.baseEditor.setPlainText(baseFile.text)
+                self.baseFileTitle.setText(
+                    f"{baseFile.name} | {baseFile.lineCount} lineas | {baseFile.extension or 'sin extension'}"
                 )
-                if base_span and compared_span:
-                    base_start_line, base_end_line = self._line_range_from_span(
-                        result.base_file.text,
-                        base_span,
-                    )
-                    compared_start_line, compared_end_line = self._line_range_from_span(
-                        result.compared_file.text,
-                        compared_span,
-                    )
-                    block_summary += (
-                        f" | {self._format_line_range('Base', base_start_line, base_end_line)}"
-                        f" | {self._format_line_range('Comparado', compared_start_line, compared_end_line)}"
-                    )
+
+                if self.currentResults:
+                    self.resultsTable.selectRow(0)
+                    self.showResult(self.currentResults[0])
                 else:
-                    block_summary += (
-                        f" | Base [{block.base_start}, {block.base_end})"
-                        f" | Comparado [{block.other_start}, {block.other_end})"
-                    )
-                color = HIGHLIGHT_COLORS[(index - 1) % len(HIGHLIGHT_COLORS)]
-                html_parts.append(
-                    "<div style='margin:4px 0;'>"
-                    f"<span style='background:{color}; color:#1f1f1f; "
-                    "padding:2px 6px; border-radius:4px; display:inline-block;'>"
-                    f"{escape(block_summary)}"
-                    "</span>"
-                    "</div>"
+                    self.updateDetails(None)
+
+    # proposito: llenar la tabla del ranking con los resultados actuales
+    # parametros: ninguno
+    # retorno: ninguno
+    def populateResultsTable(self) -> None:
+        self.resultsTable.setRowCount(len(self.currentResults))
+
+        for row, result in enumerate(self.currentResults):
+            fileItem = QTableWidgetItem(result.comparedFile.name)
+            fileItem.setData(Qt.UserRole, result)
+            percentItem = QTableWidgetItem(f"{result.similarityPercent:.2f}")
+            blocksItem = QTableWidgetItem(str(result.blockCount))
+            percentItem.setTextAlignment(Qt.AlignCenter)
+            blocksItem.setTextAlignment(Qt.AlignCenter)
+            self.resultsTable.setItem(row, 0, fileItem)
+            self.resultsTable.setItem(row, 1, percentItem)
+            self.resultsTable.setItem(row, 2, blocksItem)
+
+        self.resultsTable.resizeRowsToContents()
+
+    # proposito: mostrar el archivo seleccionado del ranking
+    # parametros: ninguno
+    # retorno: ninguno
+    def onResultSelected(self) -> None:
+        selectedItems = self.resultsTable.selectedItems()
+        if selectedItems:
+            result = selectedItems[0].data(Qt.UserRole)
+            validResult = isinstance(result, ComparisonResult)
+            if validResult:
+                self.showResult(result)
+
+    # proposito: cargar en pantalla un resultado de comparacion
+    # parametros: result -> resultado seleccionado
+    # retorno: ninguno
+    def showResult(self, result: ComparisonResult) -> None:
+        self.baseEditor.setPlainText(result.baseFile.text)
+        self.comparedEditor.setPlainText(result.comparedFile.text)
+        self.baseEditor.applyHighlights(result.baseHighlights)
+        self.comparedEditor.applyHighlights(result.comparedHighlights)
+        self.comparedFileTitle.setText(
+            f"{result.comparedFile.name} | {result.comparedFile.lineCount} lineas | "
+            f"{result.comparedFile.extension or 'sin extension'}"
+        )
+        self.updateDetails(result)
+
+    # proposito: convertir un rango resaltado a lineas humanas
+    # parametros: text -> texto completo  span -> rango resaltado
+    # retorno: tupla con linea inicial y final
+    @staticmethod
+    def lineRangeFromSpan(text: str, span: HighlightSpan) -> tuple[int, int]:
+        startLine = text.count("\n", 0, max(0, span.start)) + 1
+        endIndex = max(span.start, span.end - 1)
+        endLine = text.count("\n", 0, min(len(text), endIndex)) + 1
+        return startLine, endLine
+
+    # proposito: formatear un rango de lineas para mostrarlo en detalles
+    # parametros: label startLine endLine -> datos del rango
+    # retorno: texto listo para mostrar
+    @staticmethod
+    def formatLineRange(label: str, startLine: int, endLine: int) -> str:
+        singleLine = startLine == endLine
+        if singleLine:
+            return f"{label} linea {startLine}"
+        return f"{label} lineas {startLine}-{endLine}"
+
+    # proposito: actualizar el panel inferior de detalles
+    # parametros: result -> resultado a mostrar o none
+    # retorno: ninguno
+    def updateDetails(self, result: ComparisonResult | None) -> None:
+        if result is None:
+            self.techniqueValue.setText("-")
+            self.matchCountValue.setText("0")
+            self.commonLengthValue.setText("0")
+            self.shorterLengthValue.setText("0")
+            self.percentValue.setText("0.00%")
+            detailsText = "\n".join(self.loadWarnings) if self.loadWarnings else ""
+            self.detailsBox.setPlainText(detailsText)
+        else:
+            self.techniqueValue.setText(result.techniqueLabel)
+            self.matchCountValue.setText(str(result.blockCount))
+            self.commonLengthValue.setText(f"{result.totalCommonLength} {result.unitName}")
+            self.shorterLengthValue.setText(f"{result.shorterLength} {result.unitName}")
+            self.percentValue.setText(f"{result.similarityPercent:.2f}%")
+
+            messageLines: list[str] = []
+            if result.error:
+                messageLines.append(f"Error: {result.error}")
+            messageLines.extend(result.warnings)
+
+            htmlParts: list[str] = []
+            if messageLines:
+                htmlParts.append(
+                    "<div style='margin-bottom:8px;'>"
+                    + "<br>".join(escape(line) for line in messageLines if line)
+                    + "</div>"
                 )
-            if len(result.blocks) > 20:
-                html_parts.append("<div>...</div>")
 
-        if not html_parts:
-            self.warnings_box.clear()
-            return
+            if result.blocks:
+                htmlParts.append("<div><b>Bloques detectados:</b></div>")
+                baseSpansByBlock = {span.blockIndex: span for span in result.baseHighlights}
+                comparedSpansByBlock = {span.blockIndex: span for span in result.comparedHighlights}
 
-        self.warnings_box.setHtml("".join(html_parts))
+                for index, block in enumerate(result.blocks, start=1):
+                    if index <= 20:
+                        baseSpan = baseSpansByBlock.get(index - 1)
+                        comparedSpan = comparedSpansByBlock.get(index - 1)
+                        blockSummary = f"{index}. longitud={block.length} {result.unitName}"
+
+                        if baseSpan and comparedSpan:
+                            baseStartLine, baseEndLine = self.lineRangeFromSpan(result.baseFile.text, baseSpan)
+                            comparedStartLine, comparedEndLine = self.lineRangeFromSpan(
+                                result.comparedFile.text,
+                                comparedSpan,
+                            )
+                            blockSummary += (
+                                f" | {self.formatLineRange('Base', baseStartLine, baseEndLine)}"
+                                f" | {self.formatLineRange('Comparado', comparedStartLine, comparedEndLine)}"
+                            )
+                        else:
+                            blockSummary += (
+                                f" | Base [{block.baseStart}, {block.baseEnd})"
+                                f" | Comparado [{block.otherStart}, {block.otherEnd})"
+                            )
+
+                        color = HIGHLIGHT_COLORS[(index - 1) % len(HIGHLIGHT_COLORS)]
+                        htmlParts.append(
+                            "<div style='margin:4px 0;'>"
+                            f"<span style='background:{color}; color:#1f1f1f; "
+                            "padding:2px 6px; border-radius:4px; display:inline-block;'>"
+                            f"{escape(blockSummary)}"
+                            "</span>"
+                            "</div>"
+                        )
+
+                if len(result.blocks) > 20:
+                    htmlParts.append("<div>...</div>")
+
+            if htmlParts:
+                self.detailsBox.setHtml("".join(htmlParts))
+            else:
+                self.detailsBox.clear()
 
 
-def launch_app() -> int:
-    """Punto de entrada de escritorio."""
-
+# proposito: lanzar la aplicacion de escritorio
+# parametros: ninguno
+# retorno: codigo de salida de qt
+def launchApp() -> int:
     app = QApplication.instance() or QApplication([])
     window = MainWindow()
     window.show()

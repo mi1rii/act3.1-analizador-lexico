@@ -1,4 +1,7 @@
-"""Comparación basada en difflib.SequenceMatcher."""
+# descripcion: genera bloques contiguos con difflib
+# autor: estefania antonio villaseca, miranda eugenia colorado arroniz, alejandro kong montoya, restituto lara larios
+# matricula: a01736897, a01737023, a01734271, a01737216
+# fecha de modificacion: 2026-04-24
 
 from __future__ import annotations
 
@@ -7,25 +10,29 @@ from difflib import SequenceMatcher
 from models.match_models import MatchBlock
 
 
-def build_difflib_blocks(
-    base_sequence: list[str] | str,
-    other_sequence: list[str] | str,
-    min_match_length: int,
+# proposito: construir bloques coincidentes usando difflib
+# parametros: baseSequence otherSequence minMatchLength -> datos para comparar
+# retorno: lista de bloques contiguos
+def buildDifflibBlocks(
+    baseSequence: list[str] | str,
+    otherSequence: list[str] | str,
+    minMatchLength: int,
 ) -> list[MatchBlock]:
-    """Obtiene bloques coincidentes contiguos desde SequenceMatcher."""
-
-    matcher = SequenceMatcher(a=base_sequence, b=other_sequence, autojunk=False)
+    # nosotros aqui dejamos que difflib encuentre bloques contiguos ya iguales
+    matcher = SequenceMatcher(None, baseSequence, otherSequence, autojunk=False)
     blocks: list[MatchBlock] = []
+
     for match in matcher.get_matching_blocks():
-        if match.size < min_match_length:
-            continue
-        blocks.append(
-            MatchBlock(
-                base_start=match.a,
-                base_end=match.a + match.size,
-                other_start=match.b,
-                other_end=match.b + match.size,
-                length=match.size,
+        isLongEnough = match.size >= minMatchLength
+        if isLongEnough:
+            blocks.append(
+                MatchBlock(
+                    baseStart=match.a,
+                    baseEnd=match.a + match.size,
+                    otherStart=match.b,
+                    otherEnd=match.b + match.size,
+                    length=match.size,
+                )
             )
-        )
+
     return blocks

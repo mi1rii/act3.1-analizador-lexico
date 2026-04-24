@@ -43,8 +43,6 @@ core/difflib_matcher.py
 core/similarity.py
 core/highlight_mapper.py
 models/match_models.py
-tokenizer.py
-tests/
 top-20-python/
 ```
 
@@ -171,20 +169,6 @@ Si `venv` no está disponible en Linux, instala el paquete correspondiente. En D
 sudo apt install python3-venv
 ```
 
-## Ejecutar pruebas
-
-### Windows PowerShell / CMD
-
-```powershell
-python -m unittest discover -s tests -v
-```
-
-### macOS / Linux
-
-```bash
-python -m unittest discover -s tests -v
-```
-
 ## Uso básico
 
 1. Abre la aplicación.
@@ -248,3 +232,12 @@ Esa combinación mantiene el núcleo metodológico de Baker aunque la implementa
 ## Nota sobre el dataset
 
 La carpeta esperada por defecto es `top-20-python` y la aplicación solo carga archivos `.py`.
+
+## Referencias
+
+- Python Docs, `tokenize`: https://docs.python.org/3/library/tokenize.html
+- Python Docs, `token`: https://docs.python.org/3/library/token.html
+- Python Docs, `difflib`: https://docs.python.org/3/library/difflib.html
+- Brenda S. Baker, *On Finding Duplication and Near-Duplication in Large Software Systems*:
+  https://plg.uwaterloo.ca/~migod/846/papers/wcre95-baker.pdf
+- U. Manber, G. Myers, *Suffix arrays: A new method for on-line string searches*.

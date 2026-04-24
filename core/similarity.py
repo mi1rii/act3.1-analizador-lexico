@@ -1,16 +1,18 @@
-"""Motor de similitud y cálculo de porcentajes."""
+# descripcion: aplica las cuatro tecnicas de similitud del proyecto
+# autor: estefania antonio villaseca, miranda eugenia colorado arroniz, alejandro kong montoya, restituto lara larios
+# matricula: a01736897, a01737023, a01734271, a01737216
+# fecha de modificacion: 2026-04-24
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
-from pathlib import Path
 
-from core.difflib_matcher import build_difflib_blocks
-from core.generalizer import apply_generalization
-from core.highlight_mapper import build_highlights_from_blocks
-from core.lcs_matcher import find_common_substrings
-from core.tokenizer import tokenize_source
+from core.difflib_matcher import buildDifflibBlocks
+from core.generalizer import applyGeneralization
+from core.highlight_mapper import buildHighlightsFromBlocks
+from core.lcs_matcher import findCommonSubstrings
+from core.tokenizer import tokenizeSource
 from models.match_models import ComparisonResult, MatchBlock, SourceFile, TokenizationResult
 
 
@@ -18,7 +20,6 @@ TECHNIQUE_BAKER = "baker"
 TECHNIQUE_LCS_TEXT = "lcs_text"
 TECHNIQUE_DIFF_TOKEN = "difflib_token"
 TECHNIQUE_DIFF_TEXT = "difflib_text"
-
 
 TECHNIQUE_LABELS = {
     TECHNIQUE_BAKER: "Baker tokenizado + generalizacion + suffix array + LCS",
@@ -30,173 +31,201 @@ TECHNIQUE_LABELS = {
 
 @dataclass(slots=True)
 class SimilarityConfig:
-    """Parámetros configurables para filtrar coincidencias triviales."""
-
-    min_token_match_length: int = 8
-    min_text_match_length: int = 30
+    minTokenMatchLength: int = 8
+    minTextMatchLength: int = 30
 
 
 class SimilarityEngine:
-    """Orquesta las cuatro técnicas de comparación."""
-
+    # proposito: crear el motor con sus umbrales de comparacion
+    # parametros: config -> configuracion opcional
+    # retorno: ninguno
     def __init__(self, config: SimilarityConfig | None = None) -> None:
         self.config = config or SimilarityConfig()
 
+    # proposito: tokenizar y generalizar un archivo usando cache
+    # parametros: pathKey -> identificador del archivo  text -> contenido del archivo
+    # retorno: resultado de tokenizacion y generalizacion
     @lru_cache(maxsize=256)
-    def _tokenize_cached(self, path_key: str, text: str) -> TokenizationResult:
-        result = tokenize_source(text)
-        apply_generalization(result.tokens)
+    def tokenizeCached(self, pathKey: str, text: str) -> TokenizationResult:
+        # nosotros aqui guardamos tokenizaciones repetidas para no recalcularlas siempre
+        result = tokenizeSource(text)
+        applyGeneralization(result.tokens)
         return result
 
-    def tokenize_file(self, source_file: SourceFile) -> TokenizationResult:
-        return self._tokenize_cached(str(source_file.path.resolve()), source_file.text)
+    # proposito: tokenizar un archivo fuente del proyecto
+    # parametros: sourceFile -> archivo a tokenizar
+    # retorno: resultado de tokenizacion
+    def tokenizeFile(self, sourceFile: SourceFile) -> TokenizationResult:
+        return self.tokenizeCached(str(sourceFile.path.resolve()), sourceFile.text)
 
-    def compare_all(
+    # proposito: comparar un archivo base contra todos los demas
+    # parametros: baseFile sourceFiles techniqueKey -> datos para comparar
+    # retorno: lista de resultados ordenados por similitud
+    def compareAll(
         self,
-        base_file: SourceFile,
-        source_files: list[SourceFile],
-        technique_key: str,
+        baseFile: SourceFile,
+        sourceFiles: list[SourceFile],
+        techniqueKey: str,
     ) -> list[ComparisonResult]:
-        results = [
-            self.compare_pair(base_file, other_file, technique_key)
-            for other_file in source_files
-            if other_file.path != base_file.path
-        ]
-        results.sort(key=lambda result: result.similarity_percent, reverse=True)
+        results: list[ComparisonResult] = []
+
+        for otherFile in sourceFiles:
+            isDifferentFile = otherFile.path != baseFile.path
+            if isDifferentFile:
+                results.append(self.comparePair(baseFile, otherFile, techniqueKey))
+
+        results.sort(key=lambda result: result.similarityPercent, reverse=True)
         return results
 
-    def compare_pair(
+    # proposito: comparar dos archivos con una tecnica especifica
+    # parametros: baseFile otherFile techniqueKey -> archivos y tecnica a usar
+    # retorno: resultado completo de la comparacion
+    def comparePair(
         self,
-        base_file: SourceFile,
-        other_file: SourceFile,
-        technique_key: str,
+        baseFile: SourceFile,
+        otherFile: SourceFile,
+        techniqueKey: str,
     ) -> ComparisonResult:
-        warnings: list[str] = [*base_file.warnings, *other_file.warnings]
+        warnings = [*baseFile.warnings, *otherFile.warnings]
         error: str | None = None
-        unit_name = "tokens" if technique_key in {TECHNIQUE_BAKER, TECHNIQUE_DIFF_TOKEN} else "caracteres"
         blocks: list[MatchBlock] = []
-        base_highlights = []
-        other_highlights = []
-        total_common_length = 0
-        shorter_length = 0
+        baseHighlights: list = []
+        otherHighlights: list = []
+        tokenTechnique = techniqueKey in {TECHNIQUE_BAKER, TECHNIQUE_DIFF_TOKEN}
+        unitName = "tokens" if tokenTechnique else "caracteres"
 
-        if technique_key == TECHNIQUE_BAKER:
-            base_tokens = self.tokenize_file(base_file)
-            other_tokens = self.tokenize_file(other_file)
-            warnings.extend(base_tokens.warnings)
-            warnings.extend(other_tokens.warnings)
-            blocks = find_common_substrings(
-                base_tokens.generalized_sequence,
-                other_tokens.generalized_sequence,
-                self.config.min_token_match_length,
+        baseTokens = None
+        otherTokens = None
+        if tokenTechnique:
+            # en esta parte preparamos tokens una sola vez para las tecnicas lexicas
+            baseTokens = self.tokenizeFile(baseFile)
+            otherTokens = self.tokenizeFile(otherFile)
+            warnings.extend(baseTokens.warnings)
+            warnings.extend(otherTokens.warnings)
+
+        if techniqueKey == TECHNIQUE_BAKER:
+            # aqui comparamos la secuencia generalizada y no el texto crudo
+            blocks = findCommonSubstrings(
+                baseTokens.generalizedSequence,
+                otherTokens.generalizedSequence,
+                self.config.minTokenMatchLength,
             )
-            base_highlights, other_highlights = build_highlights_from_blocks(
+            baseHighlights, otherHighlights = buildHighlightsFromBlocks(
                 blocks,
-                base_tokens.tokens,
-                other_tokens.tokens,
-                token_mode=True,
+                baseTokens.tokens,
+                otherTokens.tokens,
+                True,
             )
-            shorter_length = min(
-                len(base_tokens.generalized_sequence),
-                len(other_tokens.generalized_sequence),
+            shorterLength = min(
+                len(baseTokens.generalizedSequence),
+                len(otherTokens.generalizedSequence),
             )
-        elif technique_key == TECHNIQUE_LCS_TEXT:
-            blocks = find_common_substrings(
-                list(base_file.text),
-                list(other_file.text),
-                self.config.min_text_match_length,
+        elif techniqueKey == TECHNIQUE_LCS_TEXT:
+            # nosotros aqui comparamos el texto plano caracter por caracter
+            blocks = findCommonSubstrings(
+                list(baseFile.text),
+                list(otherFile.text),
+                self.config.minTextMatchLength,
             )
-            base_highlights, other_highlights = build_highlights_from_blocks(
+            baseHighlights, otherHighlights = buildHighlightsFromBlocks(
                 blocks,
-                base_file.text,
-                other_file.text,
-                token_mode=False,
+                baseFile.text,
+                otherFile.text,
+                False,
             )
-            shorter_length = min(len(base_file.text), len(other_file.text))
-        elif technique_key == TECHNIQUE_DIFF_TOKEN:
-            base_tokens = self.tokenize_file(base_file)
-            other_tokens = self.tokenize_file(other_file)
-            warnings.extend(base_tokens.warnings)
-            warnings.extend(other_tokens.warnings)
-            blocks = build_difflib_blocks(
-                base_tokens.comparable_sequence,
-                other_tokens.comparable_sequence,
-                self.config.min_token_match_length,
+            shorterLength = min(len(baseFile.text), len(otherFile.text))
+        elif techniqueKey == TECHNIQUE_DIFF_TOKEN:
+            # en esta tecnica usamos difflib pero sobre tokens
+            blocks = buildDifflibBlocks(
+                baseTokens.comparableSequence,
+                otherTokens.comparableSequence,
+                self.config.minTokenMatchLength,
             )
-            base_highlights, other_highlights = build_highlights_from_blocks(
+            baseHighlights, otherHighlights = buildHighlightsFromBlocks(
                 blocks,
-                base_tokens.tokens,
-                other_tokens.tokens,
-                token_mode=True,
+                baseTokens.tokens,
+                otherTokens.tokens,
+                True,
             )
-            shorter_length = min(
-                len(base_tokens.comparable_sequence),
-                len(other_tokens.comparable_sequence),
+            shorterLength = min(
+                len(baseTokens.comparableSequence),
+                len(otherTokens.comparableSequence),
             )
-        elif technique_key == TECHNIQUE_DIFF_TEXT:
-            blocks = build_difflib_blocks(
-                base_file.text,
-                other_file.text,
-                self.config.min_text_match_length,
+        elif techniqueKey == TECHNIQUE_DIFF_TEXT:
+            # en esta tecnica usamos difflib directamente sobre texto plano
+            blocks = buildDifflibBlocks(
+                baseFile.text,
+                otherFile.text,
+                self.config.minTextMatchLength,
             )
-            base_highlights, other_highlights = build_highlights_from_blocks(
+            baseHighlights, otherHighlights = buildHighlightsFromBlocks(
                 blocks,
-                base_file.text,
-                other_file.text,
-                token_mode=False,
+                baseFile.text,
+                otherFile.text,
+                False,
             )
-            shorter_length = min(len(base_file.text), len(other_file.text))
+            shorterLength = min(len(baseFile.text), len(otherFile.text))
         else:
-            error = f"Tecnica no soportada: {technique_key}"
+            shorterLength = 0
+            error = f"tecnica no soportada: {techniqueKey}"
 
-        total_common_length = min(
-            _total_block_length(blocks, "base"),
-            _total_block_length(blocks, "other"),
+        # aqui calculamos cuanto contenido comun existe sin duplicar zonas traslapadas
+        totalCommonLength = min(
+            countCoveredLength(blocks, True),
+            countCoveredLength(blocks, False),
         )
-        similarity_percent = (
-            (total_common_length / shorter_length) * 100.0 if shorter_length else 0.0
-        )
+        similarityPercent = (totalCommonLength / shorterLength * 100.0) if shorterLength else 0.0
 
-        if not blocks and technique_key in {TECHNIQUE_BAKER, TECHNIQUE_DIFF_TOKEN} and not error:
-            warnings.append(
-                "No se detectaron bloques tokenizados con el umbral actual."
-            )
+        noBlocks = not blocks
+        tokenWarning = tokenTechnique and not error and noBlocks
+        if tokenWarning:
+            warnings.append("no se detectaron bloques tokenizados con el umbral actual")
 
         return ComparisonResult(
-            base_file=base_file,
-            compared_file=other_file,
-            technique_key=technique_key,
-            technique_label=TECHNIQUE_LABELS.get(technique_key, technique_key),
-            similarity_percent=similarity_percent,
-            total_common_length=total_common_length,
-            shorter_length=shorter_length,
+            baseFile=baseFile,
+            comparedFile=otherFile,
+            techniqueKey=techniqueKey,
+            techniqueLabel=TECHNIQUE_LABELS.get(techniqueKey, techniqueKey),
+            similarityPercent=similarityPercent,
+            totalCommonLength=totalCommonLength,
+            shorterLength=shorterLength,
             blocks=blocks,
-            base_highlights=base_highlights,
-            compared_highlights=other_highlights,
-            unit_name=unit_name,
+            baseHighlights=baseHighlights,
+            comparedHighlights=otherHighlights,
+            unitName=unitName,
             warnings=warnings,
             error=error,
         )
 
 
-def _merge_ranges(ranges: list[tuple[int, int]]) -> list[tuple[int, int]]:
+# proposito: sumar bloques sin contar dos veces las zonas traslapadas
+# parametros: blocks -> bloques encontrados  useBaseSide -> lado del bloque a sumar
+# retorno: longitud total cubierta
+def countCoveredLength(blocks: list[MatchBlock], useBaseSide: bool) -> int:
+    # nosotros aqui juntamos rangos del lado base o del lado comparado
+    ranges: list[tuple[int, int]] = []
+    for block in blocks:
+        if useBaseSide:
+            ranges.append((block.baseStart, block.baseEnd))
+        else:
+            ranges.append((block.otherStart, block.otherEnd))
+
     if not ranges:
-        return []
+        return 0
 
-    ordered = sorted(ranges)
-    merged = [ordered[0]]
-    for start, end in ordered[1:]:
-        current_start, current_end = merged[-1]
-        if start <= current_end:
-            merged[-1] = (current_start, max(current_end, end))
-            continue
-        merged.append((start, end))
-    return merged
+    # en esta seccion fusionamos rangos antes de sumarlos
+    ranges.sort()
+    total = 0
+    currentStart, currentEnd = ranges[0]
 
+    for start, end in ranges[1:]:
+        touchesCurrent = start <= currentEnd
+        if touchesCurrent:
+            currentEnd = max(currentEnd, end)
+        else:
+            total += max(0, currentEnd - currentStart)
+            currentStart = start
+            currentEnd = end
 
-def _total_block_length(blocks: list[MatchBlock], side: str) -> int:
-    if side == "base":
-        ranges = [(block.base_start, block.base_end) for block in blocks]
-    else:
-        ranges = [(block.other_start, block.other_end) for block in blocks]
-    return sum(max(0, end - start) for start, end in _merge_ranges(ranges))
+    total += max(0, currentEnd - currentStart)
+    return total

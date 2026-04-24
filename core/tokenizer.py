@@ -1,8 +1,11 @@
-"""Tokenización con el lexer estándar de Python."""
+# descripcion: tokeniza codigo python y conserva posiciones para resaltar
+# autor: estefania antonio villaseca, miranda eugenia colorado arroniz, alejandro kong montoya, restituto lara larios
+# matricula: a01736897, a01737023, a01734271, a01737216
+# fecha de modificacion: 2026-04-24
 
 from __future__ import annotations
 
-import token as token_module
+import token as tokenModule
 import tokenize
 from io import BytesIO
 
@@ -20,71 +23,58 @@ SKIP_TOKEN_TYPES = {
 }
 
 
-def _build_line_offsets(text: str) -> list[int]:
-    offsets = [0]
-    for line in text.splitlines(keepends=True):
-        offsets.append(offsets[-1] + len(line))
-    if not text.endswith(("\n", "\r")):
-        offsets.append(len(text))
-    return offsets
-
-
-def _absolute_offset(line_offsets: list[int], line: int, col: int, text_length: int) -> int:
-    if line <= 0:
-        return 0
-    index = min(line - 1, len(line_offsets) - 1)
-    return min(line_offsets[index] + col, text_length)
-
-
-def tokenize_source(text: str) -> TokenizationResult:
-    """Tokeniza un texto fuente conservando posiciones absolutas."""
-
+# proposito: tokenizar un texto y guardar offsets absolutos
+# parametros: text -> codigo fuente original
+# retorno: resultado de tokenizacion con lista de tokens y posibles avisos
+def tokenizeSource(text: str) -> TokenizationResult:
     warnings: list[str] = []
     tokens: list[LexToken] = []
-    line_offsets = _build_line_offsets(text)
+
+    # nosotros aqui guardamos donde empieza cada linea para convertir linea y columna a offset
+    lineStarts = [0]
+    for line in text.splitlines(keepends=True):
+        lineStarts.append(lineStarts[-1] + len(line))
+
+    if not text.endswith(("\n", "\r")):
+        lineStarts.append(len(text))
+
+    # proposito: convertir una posicion linea columna a una posicion absoluta
+    # parametros: line -> numero de linea  column -> numero de columna
+    # retorno: offset absoluto dentro del texto
+    def toOffset(line: int, column: int) -> int:
+        validLine = max(0, line)
+        lineIndex = min(validLine - 1, len(lineStarts) - 1)
+        if validLine == 0:
+            lineIndex = 0
+        return min(lineStarts[lineIndex] + column, len(text))
+
     stream = BytesIO(text.encode("utf-8")).readline
-    generator = tokenize.tokenize(stream)
 
     try:
-        for token_info in generator:
-            if token_info.type in SKIP_TOKEN_TYPES:
-                continue
+        for tokenInfo in tokenize.tokenize(stream):
+            shouldKeep = tokenInfo.type not in SKIP_TOKEN_TYPES
+            if shouldKeep:
+                startLine, startCol = tokenInfo.start
+                endLine, endCol = tokenInfo.end
 
-            char_start = _absolute_offset(
-                line_offsets,
-                token_info.start[0],
-                token_info.start[1],
-                len(text),
-            )
-            char_end = _absolute_offset(
-                line_offsets,
-                token_info.end[0],
-                token_info.end[1],
-                len(text),
-            )
-            tokens.append(
-                LexToken(
-                    original_text=token_info.string,
-                    token_name=token_module.tok_name.get(token_info.type, str(token_info.type)),
-                    token_type=token_info.type,
-                    start_line=token_info.start[0],
-                    start_col=token_info.start[1],
-                    end_line=token_info.end[0],
-                    end_col=token_info.end[1],
-                    char_start=char_start,
-                    char_end=char_end,
-                    comparable_text=token_info.string,
-                    generalized_text=token_info.string,
+                # en esta seccion convertimos el token crudo a un objeto mas facil de usar
+                tokens.append(
+                    LexToken(
+                        originalText=tokenInfo.string,
+                        tokenName=tokenModule.tok_name.get(tokenInfo.type, str(tokenInfo.type)),
+                        tokenType=tokenInfo.type,
+                        startLine=startLine,
+                        startCol=startCol,
+                        endLine=endLine,
+                        endCol=endCol,
+                        charStart=toOffset(startLine, startCol),
+                        charEnd=toOffset(endLine, endCol),
+                        comparableText=tokenInfo.string,
+                        generalizedText=tokenInfo.string,
+                    )
                 )
-            )
-    except tokenize.TokenError as exc:
-        warnings.append(f"TokenError: {exc}")
-        return TokenizationResult(tokens=tokens, warnings=warnings, error=str(exc))
-    except IndentationError as exc:
-        warnings.append(f"IndentationError: {exc}")
-        return TokenizationResult(tokens=tokens, warnings=warnings, error=str(exc))
-    except SyntaxError as exc:
-        warnings.append(f"SyntaxError: {exc}")
-        return TokenizationResult(tokens=tokens, warnings=warnings, error=str(exc))
+    except (tokenize.TokenError, IndentationError, SyntaxError) as error:
+        warnings.append(f"{type(error).__name__}: {error}")
+        return TokenizationResult(tokens=tokens, warnings=warnings, error=str(error))
 
-    return TokenizationResult(tokens=tokens, warnings=warnings, error=None)
+    return TokenizationResult(tokens=tokens, warnings=warnings)

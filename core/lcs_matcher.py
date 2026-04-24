@@ -1,95 +1,107 @@
-"""Búsqueda de subcadenas comunes contiguas mediante suffix array."""
+# descripcion: encuentra bloques contiguos comunes entre dos secuencias
+# autor: estefania antonio villaseca, miranda eugenia colorado arroniz, alejandro kong montoya, restituto lara larios
+# matricula: a01736897, a01737023, a01734271, a01737216
+# fecha de modificacion: 2026-04-24
 
 from __future__ import annotations
 
+from core.suffix_array import buildLcpArray, buildSuffixArray
 from models.match_models import MatchBlock
 
-from core.suffix_array import build_lcp_array, build_suffix_array
+
+SEPARATOR_A = "\u0000<SEP_A>"
+SEPARATOR_B = "\u0000<SEP_B>"
 
 
-UNIQUE_SEPARATOR_A = "\u0000<SEP_A>"
-UNIQUE_SEPARATOR_B = "\u0000<SEP_B>"
+# proposito: revisar si dos rangos se traslapan
+# parametros: startA endA startB endB -> limites de dos rangos
+# retorno: verdadero si hay traslape
+def rangesOverlap(startA: int, endA: int, startB: int, endB: int) -> bool:
+    return startA < endB and startB < endA
 
 
-def _ranges_overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
-    return not (a_end <= b_start or b_end <= a_start)
-
-
-def _deduplicate_blocks(blocks: list[MatchBlock]) -> list[MatchBlock]:
-    ordered = sorted(
-        blocks,
-        key=lambda block: (
-            -(block.length),
-            block.base_start,
-            block.other_start,
-        ),
-    )
-    selected: list[MatchBlock] = []
-    for candidate in ordered:
-        if any(
-            _ranges_overlap(candidate.base_start, candidate.base_end, chosen.base_start, chosen.base_end)
-            and _ranges_overlap(candidate.other_start, candidate.other_end, chosen.other_start, chosen.other_end)
-            for chosen in selected
-        ):
-            continue
-        selected.append(candidate)
-    return sorted(selected, key=lambda block: (block.base_start, block.other_start))
-
-
-def find_common_substrings(
-    base_sequence: list[str],
-    other_sequence: list[str],
-    min_match_length: int,
+# proposito: encontrar subcadenas comunes largas entre dos secuencias
+# parametros: baseSequence otherSequence minMatchLength -> datos para comparar
+# retorno: lista de bloques comunes
+def findCommonSubstrings(
+    baseSequence: list[str],
+    otherSequence: list[str],
+    minMatchLength: int,
 ) -> list[MatchBlock]:
-    """Encuentra bloques contiguos comunes usando suffix array + LCP."""
-
-    if not base_sequence or not other_sequence:
+    if not baseSequence or not otherSequence:
         return []
 
-    combined = base_sequence + [UNIQUE_SEPARATOR_A] + other_sequence + [UNIQUE_SEPARATOR_B]
-    suffix_array = build_suffix_array(combined)
-    lcp = build_lcp_array(combined, suffix_array)
-    split_index = len(base_sequence)
-    other_offset = len(base_sequence) + 1
+    # nosotros aqui juntamos ambas secuencias con separadores para compararlas de una sola vez
+    joined = baseSequence + [SEPARATOR_A] + otherSequence + [SEPARATOR_B]
+    suffixArray = buildSuffixArray(joined)
+    lcp = buildLcpArray(joined, suffixArray)
 
+    baseSize = len(baseSequence)
+    otherOffset = baseSize + 1
     candidates: list[MatchBlock] = []
-    for i, common_length in enumerate(lcp):
-        if common_length < min_match_length:
-            continue
-        left = suffix_array[i]
-        right = suffix_array[i + 1]
 
-        left_in_base = left < split_index
-        right_in_base = right < split_index
-        if left_in_base == right_in_base:
-            continue
+    # en esta parte sacamos candidatos largos a partir del lcp
+    for index, commonLength in enumerate(lcp):
+        isLongEnough = commonLength >= minMatchLength
+        if isLongEnough:
+            left = suffixArray[index]
+            right = suffixArray[index + 1]
+            leftIsBase = left < baseSize
+            rightIsBase = right < baseSize
 
-        if left_in_base:
-            base_start = left
-            other_start = right - other_offset
-        else:
-            base_start = right
-            other_start = left - other_offset
+            fromDifferentFiles = leftIsBase != rightIsBase
+            if fromDifferentFiles:
+                if leftIsBase:
+                    baseStart = left
+                    otherStart = right - otherOffset
+                else:
+                    baseStart = right
+                    otherStart = left - otherOffset
 
-        if other_start < 0:
-            continue
+                validOtherStart = otherStart >= 0
+                if validOtherStart:
+                    realLength = min(
+                        commonLength,
+                        len(baseSequence) - baseStart,
+                        len(otherSequence) - otherStart,
+                    )
 
-        max_length = min(
-            common_length,
-            len(base_sequence) - base_start,
-            len(other_sequence) - other_start,
-        )
-        if max_length < min_match_length:
-            continue
+                    if realLength >= minMatchLength:
+                        candidates.append(
+                            MatchBlock(
+                                baseStart=baseStart,
+                                baseEnd=baseStart + realLength,
+                                otherStart=otherStart,
+                                otherEnd=otherStart + realLength,
+                                length=realLength,
+                            )
+                        )
 
-        candidates.append(
-            MatchBlock(
-                base_start=base_start,
-                base_end=base_start + max_length,
-                other_start=other_start,
-                other_end=other_start + max_length,
-                length=max_length,
+    # aqui preferimos los bloques largos y evitamos repetir zonas ya cubiertas
+    candidates.sort(key=lambda block: (-block.length, block.baseStart, block.otherStart))
+    chosen: list[MatchBlock] = []
+
+    for candidate in candidates:
+        repeated = False
+
+        for saved in chosen:
+            sameBaseZone = rangesOverlap(
+                candidate.baseStart,
+                candidate.baseEnd,
+                saved.baseStart,
+                saved.baseEnd,
             )
-        )
+            sameOtherZone = rangesOverlap(
+                candidate.otherStart,
+                candidate.otherEnd,
+                saved.otherStart,
+                saved.otherEnd,
+            )
+            if sameBaseZone and sameOtherZone:
+                repeated = True
 
-    return _deduplicate_blocks(candidates)
+        if not repeated:
+            chosen.append(candidate)
+
+    chosen.sort(key=lambda block: (block.baseStart, block.otherStart))
+    return chosen

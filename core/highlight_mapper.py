@@ -1,4 +1,7 @@
-"""Mapeo de coincidencias a rangos absolutos de texto."""
+# descripcion: convierte bloques a rangos reales de texto para resaltar
+# autor: estefania antonio villaseca, miranda eugenia colorado arroniz, alejandro kong montoya, restituto lara larios
+# matricula: a01736897, a01737023, a01734271, a01737216
+# fecha de modificacion: 2026-04-24
 
 from __future__ import annotations
 
@@ -7,52 +10,62 @@ from collections.abc import Sequence
 from models.match_models import HighlightSpan, LexToken, MatchBlock
 
 
-def _merge_spans(spans: list[HighlightSpan]) -> list[HighlightSpan]:
-    if not spans:
-        return []
-
-    ordered = sorted(spans, key=lambda span: (span.start, span.end))
-    merged = [ordered[0]]
-    for span in ordered[1:]:
-        current = merged[-1]
-        if span.start <= current.end:
-            current.end = max(current.end, span.end)
-            continue
-        merged.append(span)
-    return merged
-
-
-def build_highlights_from_blocks(
+# proposito: convertir bloques logicos a offsets absolutos de texto
+# parametros: blocks baseSource otherSource tokenMode -> datos del bloque y origen
+# retorno: tupla con rangos del archivo base y del archivo comparado
+def buildHighlightsFromBlocks(
     blocks: list[MatchBlock],
-    base_source: Sequence[LexToken] | str,
-    other_source: Sequence[LexToken] | str,
-    token_mode: bool,
+    baseSource: Sequence[LexToken] | str,
+    otherSource: Sequence[LexToken] | str,
+    tokenMode: bool,
 ) -> tuple[list[HighlightSpan], list[HighlightSpan]]:
-    """Convierte bloques en rangos absolutos de caracteres."""
+    # en esta seccion pasamos de bloques logicos a rangos reales dentro del texto
+    baseSpans: list[HighlightSpan] = []
+    otherSpans: list[HighlightSpan] = []
 
-    base_spans: list[HighlightSpan] = []
-    other_spans: list[HighlightSpan] = []
-    for index, block in enumerate(blocks):
-        if token_mode:
-            if block.base_end <= block.base_start or block.other_end <= block.other_start:
-                continue
-            base_start = base_source[block.base_start].char_start
-            base_end = base_source[block.base_end - 1].char_end
-            other_start = other_source[block.other_start].char_start
-            other_end = other_source[block.other_end - 1].char_end
+    for blockIndex, block in enumerate(blocks):
+        validTokenBlock = not tokenMode or (
+            block.baseEnd > block.baseStart and block.otherEnd > block.otherStart
+        )
+
+        if validTokenBlock:
+            if tokenMode:
+                baseStart = baseSource[block.baseStart].charStart
+                baseEnd = baseSource[block.baseEnd - 1].charEnd
+                otherStart = otherSource[block.otherStart].charStart
+                otherEnd = otherSource[block.otherEnd - 1].charEnd
+            else:
+                baseStart = block.baseStart
+                baseEnd = block.baseEnd
+                otherStart = block.otherStart
+                otherEnd = block.otherEnd
+
+            baseSpans.append(HighlightSpan(baseStart, baseEnd, blockIndex))
+            otherSpans.append(HighlightSpan(otherStart, otherEnd, blockIndex))
+
+    return baseSpans, otherSpans
+
+
+# proposito: sumar la longitud total de rangos sin duplicar traslapes
+# parametros: spans -> rangos a sumar
+# retorno: longitud total cubierta
+def spansTotalLength(spans: list[HighlightSpan]) -> int:
+    if not spans:
+        return 0
+
+    # nosotros aqui ordenamos y fusionamos rangos para no contar dos veces la misma zona
+    orderedRanges = sorted((span.start, span.end) for span in spans)
+    total = 0
+    currentStart, currentEnd = orderedRanges[0]
+
+    for start, end in orderedRanges[1:]:
+        touchesCurrent = start <= currentEnd
+        if touchesCurrent:
+            currentEnd = max(currentEnd, end)
         else:
-            base_start = block.base_start
-            base_end = block.base_end
-            other_start = block.other_start
-            other_end = block.other_end
+            total += max(0, currentEnd - currentStart)
+            currentStart = start
+            currentEnd = end
 
-        base_spans.append(HighlightSpan(start=base_start, end=base_end, block_index=index))
-        other_spans.append(HighlightSpan(start=other_start, end=other_end, block_index=index))
-
-    return base_spans, other_spans
-
-
-def spans_total_length(spans: list[HighlightSpan]) -> int:
-    """Suma la longitud de rangos ya fusionados para evitar doble conteo."""
-
-    return sum(max(0, span.end - span.start) for span in _merge_spans(spans))
+    total += max(0, currentEnd - currentStart)
+    return total

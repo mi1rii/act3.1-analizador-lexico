@@ -1,4 +1,7 @@
-"""Dataclasses compartidas entre el núcleo de comparación y la interfaz."""
+# descripcion: modelos de datos compartidos entre el nucleo y la interfaz
+# autor: estefania antonio villaseca, miranda eugenia colorado arroniz, alejandro kong montoya, restituto lara larios
+# matricula: a01736897, a01737023, a01734271, a01737216
+# fecha de modificacion: 2026-04-24
 
 from __future__ import annotations
 
@@ -8,99 +11,104 @@ from pathlib import Path
 
 @dataclass(slots=True)
 class SourceFile:
-    """Representa un archivo fuente cargado desde disco."""
-
     path: Path
     text: str
-    load_error: str | None = None
+    loadError: str | None = None
     warnings: list[str] = field(default_factory=list)
 
+    # proposito: devolver el nombre del archivo
+    # parametros: ninguno
+    # retorno: nombre del archivo sin la ruta
     @property
     def name(self) -> str:
         return self.path.name
 
+    # proposito: devolver la extension del archivo
+    # parametros: ninguno
+    # retorno: extension en minusculas
     @property
     def extension(self) -> str:
         return self.path.suffix.lower()
 
+    # proposito: contar cuantas lineas tiene el archivo
+    # parametros: ninguno
+    # retorno: total de lineas del texto
     @property
-    def line_count(self) -> int:
+    def lineCount(self) -> int:
         return len(self.text.splitlines()) or 1
 
 
 @dataclass(slots=True)
 class LexToken:
-    """Token obtenido con el lexer estándar de Python."""
-
-    original_text: str
-    token_name: str
-    token_type: int
-    start_line: int
-    start_col: int
-    end_line: int
-    end_col: int
-    char_start: int
-    char_end: int
-    comparable_text: str = ""
-    generalized_text: str = ""
+    originalText: str
+    tokenName: str
+    tokenType: int
+    startLine: int
+    startCol: int
+    endLine: int
+    endCol: int
+    charStart: int
+    charEnd: int
+    comparableText: str = ""
+    generalizedText: str = ""
 
 
 @dataclass(slots=True)
 class TokenizationResult:
-    """Resultado de tokenizar un archivo fuente."""
-
     tokens: list[LexToken]
     warnings: list[str] = field(default_factory=list)
     error: str | None = None
 
+    # proposito: obtener la secuencia comparable original
+    # parametros: ninguno
+    # retorno: lista de textos comparables
     @property
-    def comparable_sequence(self) -> list[str]:
-        return [token.comparable_text for token in self.tokens]
+    def comparableSequence(self) -> list[str]:
+        return [token.comparableText for token in self.tokens]
 
+    # proposito: obtener la secuencia ya generalizada
+    # parametros: ninguno
+    # retorno: lista de textos generalizados
     @property
-    def generalized_sequence(self) -> list[str]:
-        return [token.generalized_text for token in self.tokens]
+    def generalizedSequence(self) -> list[str]:
+        return [token.generalizedText for token in self.tokens]
 
 
 @dataclass(slots=True)
 class MatchBlock:
-    """Bloque contiguo coincidente entre el archivo base y uno comparado."""
-
-    base_start: int
-    base_end: int
-    other_start: int
-    other_end: int
+    baseStart: int
+    baseEnd: int
+    otherStart: int
+    otherEnd: int
     length: int
 
 
 @dataclass(slots=True)
 class HighlightSpan:
-    """Rango absoluto de caracteres para resaltar en pantalla."""
-
     start: int
     end: int
-    block_index: int
+    blockIndex: int
 
 
 @dataclass(slots=True)
 class ComparisonResult:
-    """Resultado de comparar el archivo base contra otro archivo."""
-
-    base_file: SourceFile
-    compared_file: SourceFile
-    technique_key: str
-    technique_label: str
-    similarity_percent: float
-    total_common_length: int
-    shorter_length: int
+    baseFile: SourceFile
+    comparedFile: SourceFile
+    techniqueKey: str
+    techniqueLabel: str
+    similarityPercent: float
+    totalCommonLength: int
+    shorterLength: int
     blocks: list[MatchBlock]
-    base_highlights: list[HighlightSpan]
-    compared_highlights: list[HighlightSpan]
-    unit_name: str
+    baseHighlights: list[HighlightSpan]
+    comparedHighlights: list[HighlightSpan]
+    unitName: str
     warnings: list[str] = field(default_factory=list)
     error: str | None = None
 
+    # proposito: contar cuantos bloques trae el resultado
+    # parametros: ninguno
+    # retorno: cantidad de bloques encontrados
     @property
-    def block_count(self) -> int:
+    def blockCount(self) -> int:
         return len(self.blocks)
-
