@@ -22,9 +22,11 @@ def buildDifflibBlocks(
     matcher = SequenceMatcher(None, baseSequence, otherSequence, autojunk=False)
     blocks: list[MatchBlock] = []
 
+    # en esta parte revisamos cada bloque que encuentra difflib
     for match in matcher.get_matching_blocks():
         isLongEnough = match.size >= minMatchLength
         if isLongEnough:
+            # aca agregamos solo los bloques que si pasan el umbral minimo
             blocks.append(
                 MatchBlock(
                     baseStart=match.a,
